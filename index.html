@@ -1,0 +1,52 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const Excel = require("exceljs");
+const fs = require("fs");
+
+const app = express();
+const PORT = 3000;
+const FILE_NAME = "submissions.xlsx";
+
+app.use(bodyParser.json());
+app.use((req, res, next) => {
+  // Allow CORS from HTML
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
+app.post("/submit", async (req, res) => {
+  const { name, email, username } = req.body;
+  if (!name || !email || !username) return res.status(400).send("❌ Missing fields");
+
+  const workbook = new Excel.Workbook();
+  let worksheet;
+
+  // If file exists, read it
+  if (fs.existsSync(FILE_NAME)) {
+    await workbook.xlsx.readFile(FILE_NAME);
+    worksheet = workbook.getWorksheet("Submissions");
+  } else {
+    worksheet = workbook.addWorksheet("Submissions");
+    worksheet.columns = [
+      { header: "Timestamp", key: "timestamp", width: 30 },
+      { header: "Name", key: "name", width: 20 },
+      { header: "Email", key: "email", width: 25 },
+      { header: "Username", key: "username", width: 20 },
+    ];
+  }
+
+  worksheet.addRow({
+    timestamp: new Date().toISOString(),
+    name,
+    email,
+    username,
+  });
+
+  await workbook.xlsx.writeFile(FILE_NAME);
+  res.send("✅ Data saved to Excel.");
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
